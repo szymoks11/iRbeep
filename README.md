@@ -1,26 +1,44 @@
 # iRacing RPM Alert
 
-A real-time telemetry monitoring application designed for iRacing simulators. This desktop application provides intelligent shift point alerts with car-specific RPM configurations and modern user interface.
+A professional real-time RPM monitoring and shift point alert system for iRacing simulators. This desktop application provides intelligent audio alerts based on car-specific optimal shift points extracted from official iRacing PDF manuals.
 
-## 🏁 Project Highlights
+## 🏁 Features
 
-- **Real-Time Performance**: Sub-50ms telemetry processing for responsive alerts
-- **Smart Database**: 40+ pre-configured car models with gear-specific RPM limits
-- **Professional UI**: Modern interface with connection status and live data visualization
+- **Real-Time Telemetry**: Live RPM and gear monitoring via iRacing SDK
+- **35+ Car Database**: Optimal shift points from official iRacing manuals
+- **Intelligent Alerts**: Single beep per upshift with automatic reset
 - **Safety Integration**: Automatic alert suspension during caution periods
-- **Extensible Design**: JSON-based car database for easy community contributions
+- **Professional GUI**: Modern dark-themed interface with live data display
+- **Hot-Reload Config**: Modify shift points without restarting the application
+- **Gear-Specific RPMs**: Advanced cars support different RPMs per gear
 
-## 🛠️ Technical Implementation
+## 🚗 Supported Cars
 
-- **Backend**: Python with iRacing SDK integration
-- **Frontend**: Tkinter with modern styling and responsive design
-- **Data Management**: JSON configuration with automatic persistence
-- **Architecture**: Object-oriented design with comprehensive error handling
-- **Logging**: Professional logging system with file output and console display
+The application includes optimal shift points for 35+ cars across all major categories:
 
-## 📊 Key Metrics
+- **Formula Cars**: F1, IndyCar, Super Formula, Formula Vee, F4
+- **GT3/GT4**: BMW M4, Ferrari 488, Mercedes-AMG, Porsche 911, McLaren
+- **Prototypes**: Dallara iR-01, Ligier JS P320  
+- **NASCAR**: NextGen Cup Series (all manufacturers)
+- **Sports Cars**: Mazda MX-5, Toyota GR86, Porsche Cayman
 
-- Supports 30+ car models from GT3 to Formula cars
-- <50ms response time for shift alerts
-- Gear-specific RPM configurations
-- Zero false positives during safety car periods
+## 🛠️ Technical Stack
+
+- **Python 3.8+** with type hints and professional error handling
+- **iRacing SDK** for real-time telemetry integration
+- **Tkinter** for modern desktop GUI
+- **JSON Configuration** for easy customization
+- **Comprehensive Logging** system
+
+## 📖 Installation & Usage
+
+```bash
+# Clone the repository
+git clone https://github.com/szymoks11/irbeep.git
+cd irbeep
+
+# Install dependencies
+pip install pyirsdk
+
+# Run the application
+python app.py
