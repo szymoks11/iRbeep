@@ -117,24 +117,21 @@ class IRacingRPMAlert:
                         self.car_upshift_rpm[car_name] = rpm_data
                 
                 print(f"Loaded {len(self.car_upshift_rpm)} cars from config file")
-                print(f"Porsche gear 1 RPM: {self.car_upshift_rpm.get('Porsche 911 GT3 Cup (992)', {}).get(1, 'Not found')}")
+                print(f"Loaded data: {self.car_upshift_rpm}")
                 logging.info("Loaded car configuration from file")
                 
-                # IMPORTANT: Return early to prevent any default database calls
-                return
-                
             else:
-                print("Config file not found, creating default database")
-                self.car_upshift_rpm = self.get_default_car_database()
-                self.save_car_database()
-                print(f"Created config file with {len(self.car_upshift_rpm)} cars")
+                print("Config file not found, using empty database")
+                self.car_upshift_rpm = {}
+                logging.warning("No config file found. Car database is empty.")
+                
         except Exception as e:
             print(f"Error loading config: {e}")
-            logging.warning(f"Failed to load car config: {e}. Using defaults.")
-            self.car_upshift_rpm = self.get_default_car_database()
+            logging.warning(f"Failed to load car config: {e}. Using empty database.")
+            self.car_upshift_rpm = {}
     
     def save_car_database(self) -> None:
-        """Save car database to JSON file - only called when creating new file"""
+        """Save car database to JSON file"""
         try:
             config_file = Path("car_config.json")
             with open(config_file, 'w') as f:
@@ -145,63 +142,6 @@ class IRacingRPMAlert:
         except Exception as e:
             print(f"Error saving config: {e}")
             logging.error(f"Failed to save car config: {e}")
-    
-    def get_default_car_database(self) -> Dict[str, Union[int, Dict[int, int]]]:
-        """Return default car RPM database"""
-        print("WARNING: get_default_car_database() was called!")
-        import traceback
-        traceback.print_stack()  # This will show us WHERE it was called from
-        
-        return {
-            "Porsche 911 GT3 Cup (992)": {
-                1: 7800, 2: 8000, 3: 8100, 4: 8200, 5: 8200, 6: 8200
-            },
-            "BMW M4 GT3": 7200,
-            "Ferrari 488 GT3 Evo 2020": 7800,
-            "McLaren MP4-12C GT3": 7500,
-            "Audi R8 LMS EVO": 7300,
-            "Mercedes-AMG GT3 2020": 7000,
-            "Lamborghini Huracán GT3 EVO": 8500,
-            "Lexus RC F GT3": 7400,
-            "Acura NSX GT3": 7600,
-            "Ford Mustang FR500S": 6800,
-            "Mazda MX-5 Cup": 7000,
-            "Skip Barber Formula 2000": 6500,
-            "Formula Vee": 6400,
-            "Legends Ford '34 Coupe": 6000,
-            "Street Stock": 6200,
-            "Late Model Stock Car": 6800,
-            "Super Late Model": 7200,
-            "ARCA Menards Chevrolet Impala": 6500,
-            "NASCAR Cup Series Chevrolet Camaro ZL1": {
-                1: 8500, 2: 8600, 3: 8700, 4: 8800
-            },
-            "NASCAR Cup Series Ford Mustang": {
-                1: 8500, 2: 8600, 3: 8700, 4: 8800
-            },
-            "NASCAR Cup Series Toyota Camry": {
-                1: 8500, 2: 8600, 3: 8700, 4: 8800
-            },
-            "NASCAR Xfinity Series Chevrolet Camaro": 8500,
-            "NASCAR Xfinity Series Ford Mustang": 8500,
-            "NASCAR Xfinity Series Toyota Supra": 8500,
-            "NASCAR Truck Series Chevrolet Silverado": 8200,
-            "NASCAR Truck Series Ford F-150": 8200,
-            "NASCAR Truck Series Toyota Tundra": 8200,
-            "Dallara IR18": {
-                1: 11500, 2: 11700, 3: 11800, 4: 11900, 5: 12000, 6: 12000
-            },
-            "Super Formula SF23": 11500,
-            "Formula 3.5": 8500,
-            "Pro Mazda": 7200,
-            "Indy Pro 2000": 6800,
-            "USF 2000": 6500,
-            "Dirt Late Model": 6800,
-            "Dirt Modified": 7500,
-            "Dirt Sprint Car": 8200,
-            "Dirt Midget": 7800,
-            "World of Outlaws Sprint Car": 8500,
-        }
     
     def create_widgets(self):
         """Create the user interface"""
@@ -295,6 +235,21 @@ class IRacingRPMAlert:
         )
         self.start_button.pack()
         
+        # Settings button
+        settings_button = tk.Button(
+            button_frame,
+            text="Upshift Settings",
+            command=self.open_settings_window,
+            font=("Arial", 10),
+            bg='#ff6600',
+            fg='white',
+            padx=15,
+            pady=5,
+            relief='raised',
+            cursor='hand2'
+        )
+        settings_button.pack(pady=(10, 0))
+        
         # Add config reload button for easy testing
         reload_button = tk.Button(
             button_frame,
@@ -308,7 +263,258 @@ class IRacingRPMAlert:
             relief='raised',
             cursor='hand2'
         )
-        reload_button.pack(pady=(10, 0))
+        reload_button.pack(pady=(5, 0))
+    
+    def open_settings_window(self) -> None:
+        """Open the upshift settings configuration window"""
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("Upshift RPM Settings")
+        settings_window.geometry("600x500")
+        settings_window.configure(bg='#1e1e1e')
+        settings_window.resizable(True, True)
+        
+        # Make window modal
+        settings_window.transient(self.root)
+        settings_window.grab_set()
+        
+        # Title
+        title = tk.Label(
+            settings_window,
+            text="Upshift RPM Configuration",
+            font=("Arial", 16, "bold"),
+            bg='#1e1e1e',
+            fg='white'
+        )
+        title.pack(pady=10)
+        
+        # Instructions
+        instructions = tk.Label(
+            settings_window,
+            text="Configure upshift RPM points for different cars and gears",
+            font=("Arial", 10),
+            bg='#1e1e1e',
+            fg='gray'
+        )
+        instructions.pack(pady=5)
+        
+        # Main frame with scrollbar
+        main_frame = tk.Frame(settings_window, bg='#1e1e1e')
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(main_frame, bg='#1e1e1e', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg='#1e1e1e')
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Add new car section
+        new_car_frame = tk.LabelFrame(
+            scrollable_frame,
+            text="Add New Car",
+            font=("Arial", 12, "bold"),
+            bg='#2e2e2e',
+            fg='white',
+            padx=10,
+            pady=10
+        )
+        new_car_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        # Car name entry
+        tk.Label(new_car_frame, text="Car Name:", bg='#2e2e2e', fg='white').grid(row=0, column=0, sticky='w', pady=5)
+        car_name_entry = tk.Entry(new_car_frame, width=40, bg='#3e3e3e', fg='white', insertbackground='white')
+        car_name_entry.grid(row=0, column=1, columnspan=2, sticky='ew', pady=5, padx=(10, 0))
+        
+        # RPM type selection
+        rpm_type_var = tk.StringVar(value="single")
+        tk.Label(new_car_frame, text="RPM Type:", bg='#2e2e2e', fg='white').grid(row=1, column=0, sticky='w', pady=5)
+        
+        single_rpm_radio = tk.Radiobutton(
+            new_car_frame, text="Single RPM", variable=rpm_type_var, value="single",
+            bg='#2e2e2e', fg='white', selectcolor='#3e3e3e'
+        )
+        single_rpm_radio.grid(row=1, column=1, sticky='w', pady=5)
+        
+        gear_rpm_radio = tk.Radiobutton(
+            new_car_frame, text="Per-Gear RPM", variable=rpm_type_var, value="gear",
+            bg='#2e2e2e', fg='white', selectcolor='#3e3e3e'
+        )
+        gear_rpm_radio.grid(row=1, column=2, sticky='w', pady=5)
+        
+        # Single RPM entry
+        single_rpm_frame = tk.Frame(new_car_frame, bg='#2e2e2e')
+        single_rpm_frame.grid(row=2, column=0, columnspan=3, sticky='ew', pady=5)
+        
+        tk.Label(single_rpm_frame, text="RPM:", bg='#2e2e2e', fg='white').pack(side=tk.LEFT)
+        single_rpm_entry = tk.Entry(single_rpm_frame, width=10, bg='#3e3e3e', fg='white', insertbackground='white')
+        single_rpm_entry.pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Gear RPM entries
+        gear_rpm_frame = tk.Frame(new_car_frame, bg='#2e2e2e')
+        gear_rpm_frame.grid(row=3, column=0, columnspan=3, sticky='ew', pady=5)
+        
+        gear_entries = {}
+        for gear in range(1, 7):
+            gear_frame = tk.Frame(gear_rpm_frame, bg='#2e2e2e')
+            gear_frame.pack(side=tk.LEFT, padx=5)
+            
+            tk.Label(gear_frame, text=f"G{gear}:", bg='#2e2e2e', fg='white', font=("Arial", 8)).pack()
+            entry = tk.Entry(gear_frame, width=8, bg='#3e3e3e', fg='white', insertbackground='white')
+            entry.pack()
+            gear_entries[gear] = entry
+        
+        # Add car button
+        def add_new_car():
+            car_name = car_name_entry.get().strip()
+            if not car_name:
+                messagebox.showerror("Error", "Please enter a car name")
+                return
+            
+            if rpm_type_var.get() == "single":
+                try:
+                    rpm = int(single_rpm_entry.get())
+                    self.car_upshift_rpm[car_name] = rpm
+                except ValueError:
+                    messagebox.showerror("Error", "Please enter a valid RPM value")
+                    return
+            else:
+                gear_data = {}
+                for gear, entry in gear_entries.items():
+                    rpm_text = entry.get().strip()
+                    if rpm_text:
+                        try:
+                            gear_data[gear] = int(rpm_text)
+                        except ValueError:
+                            messagebox.showerror("Error", f"Invalid RPM value for gear {gear}")
+                            return
+                
+                if not gear_data:
+                    messagebox.showerror("Error", "Please enter at least one gear RPM value")
+                    return
+                
+                self.car_upshift_rpm[car_name] = gear_data
+            
+            self.save_car_database()
+            settings_window.destroy()
+            messagebox.showinfo("Success", f"Added car: {car_name}")
+            logging.info(f"Added new car configuration: {car_name}")
+        
+        add_button = tk.Button(
+            new_car_frame,
+            text="Add Car",
+            command=add_new_car,
+            bg='#00aa00',
+            fg='white',
+            font=("Arial", 10, "bold"),
+            padx=20
+        )
+        add_button.grid(row=4, column=0, columnspan=3, pady=10)
+        
+        # Existing cars section
+        existing_frame = tk.LabelFrame(
+            scrollable_frame,
+            text="Existing Cars",
+            font=("Arial", 12, "bold"),
+            bg='#2e2e2e',
+            fg='white',
+            padx=10,
+            pady=10
+        )
+        existing_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Create treeview for existing cars
+        tree_frame = tk.Frame(existing_frame, bg='#2e2e2e')
+        tree_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Configure treeview style
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("Treeview", background="#3e3e3e", foreground="white", fieldbackground="#3e3e3e")
+        style.configure("Treeview.Heading", background="#2e2e2e", foreground="white")
+        
+        tree = ttk.Treeview(tree_frame, columns=("RPM Data",), show="tree headings", height=10)
+        tree.heading("#0", text="Car Name")
+        tree.heading("RPM Data", text="RPM Configuration")
+        
+        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=tree_scroll.set)
+        
+        tree.pack(side="left", fill="both", expand=True)
+        tree_scroll.pack(side="right", fill="y")
+        
+        # Populate tree with existing cars
+        def populate_tree():
+            tree.delete(*tree.get_children())
+            for car_name, rpm_data in self.car_upshift_rpm.items():
+                if isinstance(rpm_data, dict):
+                    rpm_text = ", ".join([f"G{gear}: {rpm}" for gear, rpm in sorted(rpm_data.items())])
+                else:
+                    rpm_text = f"Single: {rpm_data}"
+                tree.insert("", "end", text=car_name, values=(rpm_text,))
+        
+        populate_tree()
+        
+        # Delete selected car
+        def delete_selected_car():
+            selected = tree.selection()
+            if not selected:
+                messagebox.showwarning("Warning", "Please select a car to delete")
+                return
+            
+            car_name = tree.item(selected[0])['text']
+            if messagebox.askyesno("Confirm Delete", f"Delete car '{car_name}'?"):
+                del self.car_upshift_rpm[car_name]
+                self.save_car_database()
+                populate_tree()
+                logging.info(f"Deleted car configuration: {car_name}")
+        
+        # Control buttons for existing cars
+        control_frame = tk.Frame(existing_frame, bg='#2e2e2e')
+        control_frame.pack(fill=tk.X, pady=10)
+        
+        delete_button = tk.Button(
+            control_frame,
+            text="Delete Selected",
+            command=delete_selected_car,
+            bg='#aa0000',
+            fg='white',
+            font=("Arial", 10),
+            padx=15
+        )
+        delete_button.pack(side=tk.LEFT, padx=(0, 10))
+        
+        refresh_button = tk.Button(
+            control_frame,
+            text="Refresh",
+            command=populate_tree,
+            bg='#0066cc',
+            fg='white',
+            font=("Arial", 10),
+            padx=15
+        )
+        refresh_button.pack(side=tk.LEFT)
+        
+        # Close button
+        close_button = tk.Button(
+            settings_window,
+            text="Close",
+            command=settings_window.destroy,
+            bg='#666666',
+            fg='white',
+            font=("Arial", 12),
+            padx=30,
+            pady=5
+        )
+        close_button.pack(pady=10)
     
     def reload_config(self) -> None:
         """Reload configuration from JSON file"""
@@ -328,24 +534,48 @@ class IRacingRPMAlert:
         """Get the upshift RPM for a specific car and gear"""
         effective_gear = max(1, gear)  # Use gear 1 for neutral/reverse
         
+        print(f"DEBUG: Looking up RPM for car='{car_name}', gear={gear}, effective_gear={effective_gear}")
+        
         # Try exact match first
         if car_name in self.car_upshift_rpm:
             rpm_data = self.car_upshift_rpm[car_name]
-            return self._extract_rpm_from_data(rpm_data, effective_gear)
+            print(f"DEBUG: Found exact match for '{car_name}': {rpm_data}")
+            result = self._extract_rpm_from_data(rpm_data, effective_gear)
+            print(f"DEBUG: Extracted RPM: {result}")
+            return result
         
         # Try partial matching
         car_name_lower = car_name.lower()
         for known_car, rpm_data in self.car_upshift_rpm.items():
             if self._is_car_match(car_name_lower, known_car.lower()):
-                return self._extract_rpm_from_data(rpm_data, effective_gear)
+                print(f"DEBUG: Found partial match: '{known_car}' for '{car_name}': {rpm_data}")
+                result = self._extract_rpm_from_data(rpm_data, effective_gear)
+                print(f"DEBUG: Extracted RPM: {result}")
+                return result
         
         # Fallback to car type detection
+        print(f"DEBUG: No match found, using car type detection for '{car_name}'")
         return self._get_rpm_by_car_type(car_name_lower)
     
     def _extract_rpm_from_data(self, rpm_data: Union[int, Dict[int, int]], gear: int) -> int:
         """Extract RPM value from car data"""
+        print(f"DEBUG: _extract_rpm_from_data called with rpm_data={rpm_data}, gear={gear}")
+        
         if isinstance(rpm_data, dict):
-            return rpm_data.get(gear, rpm_data.get(1, max(rpm_data.values())))
+            if gear in rpm_data:
+                result = rpm_data[gear]
+                print(f"DEBUG: Found gear {gear} in data: {result}")
+                return result
+            elif 1 in rpm_data:
+                result = rpm_data[1]
+                print(f"DEBUG: Gear {gear} not found, using gear 1: {result}")
+                return result
+            else:
+                result = max(rpm_data.values())
+                print(f"DEBUG: No gear 1, using max value: {result}")
+                return result
+        
+        print(f"DEBUG: Single RPM value: {rpm_data}")
         return rpm_data
     
     def _is_car_match(self, car_name: str, known_car: str) -> bool:
