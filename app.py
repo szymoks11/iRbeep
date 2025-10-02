@@ -4,7 +4,7 @@ iRacing RPM Alert - Version 1.0
 A real-time RPM monitoring and shift point alert system for iRacing
 
 Author: Szymon Flis
-Version: 1.0.0
+Version: 1.0.2
 License: MIT
 Repository: https://github.com/szymoks11/irbeep
 """
@@ -91,9 +91,6 @@ class IRacingRPMAlert:
         """Load car-specific RPM data from external file if available"""
         config_file = Path("car_config.json")
         
-        print(f"Looking for config file at: {config_file.absolute()}")
-        print(f"Config file exists: {config_file.exists()}")
-        
         try:
             if config_file.exists():
                 with open(config_file, 'r') as f:
@@ -110,23 +107,19 @@ class IRacingRPMAlert:
                                 gear_int = int(gear_key)
                                 converted_data[gear_int] = rpm_value
                             except ValueError:
-                                print(f"Warning: Invalid gear key '{gear_key}' for car '{car_name}'")
+                                logging.warning(f"Invalid gear key '{gear_key}' for car '{car_name}'")
                         self.car_upshift_rpm[car_name] = converted_data
                     else:
                         # Single RPM value, keep as is
                         self.car_upshift_rpm[car_name] = rpm_data
                 
-                print(f"Loaded {len(self.car_upshift_rpm)} cars from config file")
-                print(f"Loaded data: {self.car_upshift_rpm}")
                 logging.info("Loaded car configuration from file")
                 
             else:
-                print("Config file not found, using empty database")
                 self.car_upshift_rpm = {}
                 logging.warning("No config file found. Car database is empty.")
                 
         except Exception as e:
-            print(f"Error loading config: {e}")
             logging.warning(f"Failed to load car config: {e}. Using empty database.")
             self.car_upshift_rpm = {}
     
@@ -136,11 +129,8 @@ class IRacingRPMAlert:
             config_file = Path("car_config.json")
             with open(config_file, 'w') as f:
                 json.dump(self.car_upshift_rpm, f, indent=2)
-            print(f"Saved config to: {config_file.absolute()}")
-            print(f"File size: {config_file.stat().st_size} bytes")
             logging.info("Car database saved to file")
         except Exception as e:
-            print(f"Error saving config: {e}")
             logging.error(f"Failed to save car config: {e}")
     
     def create_widgets(self):
@@ -518,7 +508,6 @@ class IRacingRPMAlert:
     
     def reload_config(self) -> None:
         """Reload configuration from JSON file"""
-        print("Manually reloading configuration...")
         self.load_car_database()
         logging.info("Configuration reloaded from file")
         
@@ -528,54 +517,34 @@ class IRacingRPMAlert:
             display_gear = self.current_gear if self.current_gear > 0 else 1
             upshift_rpm = self.get_upshift_rpm_for_car(base_car_name, display_gear)
             self.car_label.config(text=f"{self.current_car} (Upshift: {upshift_rpm} RPM)")
-            print(f"Updated display: {upshift_rpm} RPM for gear {display_gear}")
     
     def get_upshift_rpm_for_car(self, car_name: str, gear: int = 1) -> int:
         """Get the upshift RPM for a specific car and gear"""
         effective_gear = max(1, gear)  # Use gear 1 for neutral/reverse
         
-        print(f"DEBUG: Looking up RPM for car='{car_name}', gear={gear}, effective_gear={effective_gear}")
-        
         # Try exact match first
         if car_name in self.car_upshift_rpm:
             rpm_data = self.car_upshift_rpm[car_name]
-            print(f"DEBUG: Found exact match for '{car_name}': {rpm_data}")
-            result = self._extract_rpm_from_data(rpm_data, effective_gear)
-            print(f"DEBUG: Extracted RPM: {result}")
-            return result
+            return self._extract_rpm_from_data(rpm_data, effective_gear)
         
         # Try partial matching
         car_name_lower = car_name.lower()
         for known_car, rpm_data in self.car_upshift_rpm.items():
             if self._is_car_match(car_name_lower, known_car.lower()):
-                print(f"DEBUG: Found partial match: '{known_car}' for '{car_name}': {rpm_data}")
-                result = self._extract_rpm_from_data(rpm_data, effective_gear)
-                print(f"DEBUG: Extracted RPM: {result}")
-                return result
+                return self._extract_rpm_from_data(rpm_data, effective_gear)
         
         # Fallback to car type detection
-        print(f"DEBUG: No match found, using car type detection for '{car_name}'")
         return self._get_rpm_by_car_type(car_name_lower)
     
     def _extract_rpm_from_data(self, rpm_data: Union[int, Dict[int, int]], gear: int) -> int:
         """Extract RPM value from car data"""
-        print(f"DEBUG: _extract_rpm_from_data called with rpm_data={rpm_data}, gear={gear}")
-        
         if isinstance(rpm_data, dict):
             if gear in rpm_data:
-                result = rpm_data[gear]
-                print(f"DEBUG: Found gear {gear} in data: {result}")
-                return result
+                return rpm_data[gear]
             elif 1 in rpm_data:
-                result = rpm_data[1]
-                print(f"DEBUG: Gear {gear} not found, using gear 1: {result}")
-                return result
+                return rpm_data[1]
             else:
-                result = max(rpm_data.values())
-                print(f"DEBUG: No gear 1, using max value: {result}")
-                return result
-        
-        print(f"DEBUG: Single RPM value: {rpm_data}")
+                return max(rpm_data.values())
         return rpm_data
     
     def _is_car_match(self, car_name: str, known_car: str) -> bool:
@@ -683,16 +652,11 @@ class IRacingRPMAlert:
                                 driver = driver_info['Drivers'][0]
                                 car_name = driver.get('CarScreenName') or driver.get('CarScreenNameShort') or driver.get('CarPath', 'Unknown Car')
                         
-                        # Check if safety car is active
+                        # Disable safety car detection for now - was causing false positives
                         safety_car_active = False
-                        if session_flags is not None:
-                            # Check for caution/yellow flags (safety car periods)
-                            safety_car_active = (session_flags & 0x0008) or (session_flags & 0x4000)  # Yellow or Caution flags
                         
                         if not car_name:
                             car_name = "No Car Data"
-                        elif safety_car_active:
-                            car_name = f"{car_name} (Safety Car Period)"
                         
                         # Only print debug info if car changed
                         if car_name != self.current_car:
@@ -701,11 +665,9 @@ class IRacingRPMAlert:
                         # Update car name if it changed
                         if car_name and car_name != self.current_car:
                             self.current_car = car_name
-                            # Get base car name without safety car suffix for RPM lookup
-                            base_car_name = car_name.replace(" (Safety Car Period)", "")
                             # Use gear 1 as default for initial display
                             display_gear = self.current_gear if self.current_gear > 0 else 1
-                            upshift_rpm = self.get_upshift_rpm_for_car(base_car_name, display_gear)
+                            upshift_rpm = self.get_upshift_rpm_for_car(car_name, display_gear)
                             self.car_label.config(text=f"{car_name} (Upshift: {upshift_rpm} RPM)")
                             logging.info(f"Upshift RPM set to: {upshift_rpm} for gear {display_gear}")
                         
@@ -713,8 +675,8 @@ class IRacingRPMAlert:
                             self.current_rpm = int(rpm)
                             self.rpm_label.config(text=str(self.current_rpm))
                             
-                            # Only check for upshift beep if not in safety car period and monitoring is active
-                            if not safety_car_active and self.is_monitoring:
+                            # Check for upshift beep if monitoring is active
+                            if self.is_monitoring:
                                 self.check_upshift_rpm_beep()
                         
                         # Update gear display and recalculate upshift RPM if gear changed
@@ -729,10 +691,9 @@ class IRacingRPMAlert:
                                 self.gear_label.config(text=str(gear))
                             
                             # Update upshift RPM display when gear changes
-                            if self.current_car and not safety_car_active:
-                                base_car_name = self.current_car.replace(" (Safety Car Period)", "")
+                            if self.current_car:
                                 display_gear = gear if gear > 0 else 1
-                                upshift_rpm = self.get_upshift_rpm_for_car(base_car_name, display_gear)
+                                upshift_rpm = self.get_upshift_rpm_for_car(self.current_car, display_gear)
                                 self.car_label.config(text=f"{self.current_car} (Upshift: {upshift_rpm} RPM)")
                                 
                                 # Reset beep flag when gear changes
