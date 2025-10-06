@@ -154,7 +154,6 @@ class IRacingRPMAlert:
         logging.info(f"iRacing RPM Alert v{self.VERSION} started")
     
     def setup_window(self) -> None:
-        """Configure main window with performance optimizations"""
         self.root.title(f"iRacing RPM Alert v{self.VERSION}")
         self.root.geometry("600x700")
         self.root.configure(bg=self.COLORS['bg_primary'])
@@ -164,13 +163,11 @@ class IRacingRPMAlert:
         # Disable animation for better performance
         self.root.tk.call("tk", "scaling", 1.0)
         
-        # Configure window icon
         try:
             self.root.iconbitmap('icon.ico')
         except:
             pass
         
-        # Configure modern ttk style
         self.setup_modern_styles()
     
     def setup_modern_styles(self):
@@ -178,7 +175,6 @@ class IRacingRPMAlert:
         style = ttk.Style()
         style.theme_use('clam')
         
-        # Configure modern treeview
         style.configure('Modern.Treeview',
                        background=self.COLORS['bg_card'],
                        foreground=self.COLORS['text_primary'],
@@ -192,7 +188,6 @@ class IRacingRPMAlert:
                        borderwidth=0,
                        relief='flat')
         
-        # Configure modern scrollbar
         style.configure('Modern.Vertical.TScrollbar',
                        background=self.COLORS['bg_secondary'],
                        troughcolor=self.COLORS['bg_primary'],
@@ -229,11 +224,9 @@ class IRacingRPMAlert:
                 with open(config_file, 'r') as f:
                     raw_data = json.load(f)
                 
-                # Convert string gear keys to integers
                 self.car_upshift_rpm = {}
                 for car_name, rpm_data in raw_data.items():
                     if isinstance(rpm_data, dict):
-                        # Convert string keys to integers for gear-specific data
                         converted_data = {}
                         for gear_key, rpm_value in rpm_data.items():
                             try:
@@ -243,7 +236,6 @@ class IRacingRPMAlert:
                                 logging.warning(f"Invalid gear key '{gear_key}' for car '{car_name}'")
                         self.car_upshift_rpm[car_name] = converted_data
                     else:
-                        # Single RPM value, keep as is
                         self.car_upshift_rpm[car_name] = rpm_data
                 
                 logging.info("Loaded car configuration from file")
@@ -282,22 +274,11 @@ class IRacingRPMAlert:
                 clean_name = clean_name[len(prefix):].strip()
                 break
         
-        # During safety car periods, iRacing sometimes shows wrong car names
-        # If we see porsche but you're actually in Formula Vee, we need to ignore the wrong data
-        # For now, just remove safety prefix and let the user manually identify their car
-        
-        # If the result looks like gibberish after removing safety prefix, 
-        # return a generic name so user knows something is wrong
         if len(clean_name) < 3 or not any(c.isalpha() for c in clean_name):
             clean_name = "Unknown Car (Safety Period)"
         else:
             clean_name = clean_name.title()
-        
-        # Log the change
-        if clean_name != original_name:
-            #logging.info(f"Safety car period detected: '{original_name}' -> '{clean_name}'")
-            pass
-        
+            
         return clean_name
     
     def create_modern_gui(self):
@@ -356,7 +337,6 @@ class IRacingRPMAlert:
         )
         status_card.pack(fill=tk.X, pady=(0, 20))
         
-        # Add subtle border effect
         border_frame = tk.Frame(status_card, bg=self.COLORS['accent_primary'], height=2)
         border_frame.pack(fill=tk.X)
         
@@ -367,7 +347,6 @@ class IRacingRPMAlert:
         self.status_indicator = StatusIndicator(content_frame)
         self.status_indicator.pack(side=tk.LEFT)
         
-        # Car name on the right
         self.car_label = tk.Label(
             content_frame,
             text="No Car Detected",
@@ -642,10 +621,8 @@ AUTHOR: Szymon Flis
         main_frame = tk.Frame(settings_window, bg=self.COLORS['bg_primary'])
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
         
-        # Add car section (simplified)
         self.create_simple_add_car_section(main_frame)
         
-        # Existing cars section (simplified)
         self.create_simple_existing_cars_section(main_frame, settings_window)
 
     def create_simple_add_car_section(self, parent):
@@ -684,7 +661,7 @@ AUTHOR: Szymon Flis
         )
         self.car_name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 10))
         
-        # RPM type selection (simplified)
+        # RPM type selection
         self.rpm_type_var = tk.StringVar(value="single")
         
         tk.Label(
@@ -743,7 +720,7 @@ AUTHOR: Szymon Flis
         )
         self.single_rpm_entry.pack(side=tk.LEFT)
         
-        # Gear RPM inputs (simplified grid)
+        # Gear RPM inputs
         self.gear_rpm_frame = tk.Frame(content, bg=self.COLORS['bg_card'])
         
         gear_label = tk.Label(
@@ -840,7 +817,7 @@ AUTHOR: Szymon Flis
             return None
 
     def toggle_simple_rpm_inputs(self):
-        """Toggle between single and gear RPM inputs (simplified)"""
+        """Toggle between single and gear RPM inputs"""
         if self.rpm_type_var.get() == "single":
             self.gear_rpm_frame.grid_remove()
             self.single_rpm_frame.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 10))
@@ -849,7 +826,6 @@ AUTHOR: Szymon Flis
             self.gear_rpm_frame.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 10))
 
     def create_simple_existing_cars_section(self, parent, settings_window):
-        """Create simplified existing cars section"""
         existing_frame = tk.LabelFrame(
             parent,
             text=f"Configured Cars ({len(self.car_upshift_rpm)})",
@@ -887,9 +863,8 @@ AUTHOR: Szymon Flis
         # Populate listbox
         self.populate_simple_list()
         
-        # Control buttons - use pack instead of fill=tk.X to prevent stretching
         button_frame = tk.Frame(content, bg=self.COLORS['bg_card'])
-        button_frame.pack(anchor='s')  # Anchor to bottom, don't expand
+        button_frame.pack(anchor='s') 
         
         tk.Button(
             button_frame,
@@ -934,7 +909,6 @@ AUTHOR: Szymon Flis
         ).pack(side=tk.RIGHT)
 
     def populate_simple_list(self):
-        """Populate simple listbox with existing cars"""
         self.car_listbox.delete(0, tk.END)
         for car_name, rpm_data in self.car_upshift_rpm.items():
             if isinstance(rpm_data, dict):
@@ -944,7 +918,6 @@ AUTHOR: Szymon Flis
             self.car_listbox.insert(tk.END, rpm_text)
 
     def delete_selected_simple_car(self):
-        """Delete selected car from simple listbox"""
         selection = self.car_listbox.curselection()
         if not selection:
             messagebox.showwarning("Selection Required", "Please select a car to delete")
@@ -961,7 +934,6 @@ AUTHOR: Szymon Flis
             logging.info(f"Deleted car configuration: {car_name}")
 
     def add_new_car(self):
-        """Add new car with modern validation"""
         car_name = self.car_name_entry.get().strip()
         if not car_name:
             messagebox.showerror("Validation Error", "Please enter a car name")
@@ -1019,7 +991,6 @@ AUTHOR: Szymon Flis
         self.update_cars_count()
         logging.info("Configuration reloaded from file")
         
-        # Update current car display if needed
         if self.current_car and self.current_car != "Unknown":
             # Use the clean car name for RPM lookup
             clean_car_name = self._clean_car_name(self.current_car)
@@ -1036,24 +1007,20 @@ AUTHOR: Szymon Flis
         # Clean the car name first
         clean_car_name = self._clean_car_name(car_name)
         
-        # Only log if car or gear changed (reduce spam)
         cache_key = f"{clean_car_name}_{effective_gear}"
         if not hasattr(self, '_last_rpm_lookup') or self._last_rpm_lookup != cache_key:
             self._last_rpm_lookup = cache_key
             logging.debug(f"RPM lookup: '{clean_car_name}', gear: {effective_gear}")
         
-        # Try exact match with cleaned name first
         if clean_car_name in self.car_upshift_rpm:
             rpm_data = self.car_upshift_rpm[clean_car_name]
             rpm = self._extract_rpm_from_data(rpm_data, effective_gear)
             return rpm
         
-        # Try partial matching with cleaned name
         clean_car_lower = clean_car_name.lower()
         for known_car, rpm_data in self.car_upshift_rpm.items():
             if self._is_car_match(clean_car_lower, known_car.lower()):
                 rpm = self._extract_rpm_from_data(rpm_data, effective_gear)
-                # Only log the first time we find a match for this car
                 if not hasattr(self, '_logged_matches'):
                     self._logged_matches = set()
                 match_key = f"{clean_car_name}_{known_car}"
@@ -1062,14 +1029,12 @@ AUTHOR: Szymon Flis
                     logging.info(f"Matched '{clean_car_name}' with '{known_car}' -> {rpm} RPM")
                 return rpm
         
-        # Enhanced Porsche matching specifically
         if "porsche" in clean_car_lower and ("911" in clean_car_lower or "gt3" in clean_car_lower):
             for known_car, rpm_data in self.car_upshift_rpm.items():
                 known_lower = known_car.lower()
                 if ("porsche" in known_lower and "911" in known_lower) or \
                 ("porsche" in known_lower and "gt3" in known_lower and "cup" in known_lower):
                     rpm = self._extract_rpm_from_data(rpm_data, effective_gear)
-                    # Only log once per car match
                     if not hasattr(self, '_logged_porsche_matches'):
                         self._logged_porsche_matches = set()
                     match_key = f"{clean_car_name}_{known_car}"
@@ -1184,7 +1149,6 @@ AUTHOR: Szymon Flis
         current_time = time.time()
         upshift_rpm = self.get_upshift_rpm_for_car(self.current_car, self.current_gear)
         
-        # Add tolerance to catch shift points more accurately
         tolerance = self.settings.get("rpm_tolerance", 50)
         
         if self._should_trigger_beep(upshift_rpm, current_time, tolerance):
@@ -1193,8 +1157,7 @@ AUTHOR: Szymon Flis
             self.has_beeped_for_current_upshift = False
 
     def _should_trigger_beep(self, upshift_rpm: int, current_time: float, tolerance: int = 50) -> bool:
-        """Determine if beep should be triggered with tolerance"""
-        # Trigger when RPM is within tolerance of target (not just above)
+
         rpm_in_range = (upshift_rpm - tolerance) <= self.current_rpm <= (upshift_rpm + tolerance)
         
         return (rpm_in_range and
@@ -1202,12 +1165,10 @@ AUTHOR: Szymon Flis
                 current_time - self.last_upshift_beep_time > self.beep_cooldown)
 
     def _should_reset_beep_flag(self, upshift_rpm: int) -> bool:
-        """Determine if beep flag should be reset"""
         return (self.has_beeped_for_current_upshift and
                 self.current_rpm < (upshift_rpm - self.settings["rpm_reset_threshold"]))
 
     def _trigger_upshift_alert(self, upshift_rpm: int, current_time: float) -> None:
-        """Trigger the upshift alert with accuracy info"""
         try:
             winsound.Beep(self.settings["beep_frequency"], self.settings["beep_duration"])
             self.last_upshift_beep_time = current_time
@@ -1221,7 +1182,6 @@ AUTHOR: Szymon Flis
             logging.error(f"Failed to play alert sound: {e}")
     
     def setup_iracing_connection(self) -> None:
-        """Initialize iRacing SDK connection"""
         try:
             self.ir = irsdk.IRSDK()
             logging.info("iRacing SDK initialized")
@@ -1230,12 +1190,10 @@ AUTHOR: Szymon Flis
             messagebox.showerror("Error", "Failed to initialize iRacing SDK")
     
     def start_monitoring(self) -> None:
-        """Start the main monitoring loop"""
         self.update_loop()
 
     
     def update_loop(self):
-        """Enhanced update loop with fresh car detection"""
         try:
             if self.ir.startup():
                 if self.ir.is_connected:
@@ -1246,9 +1204,7 @@ AUTHOR: Szymon Flis
                     current_session_id = self.ir['SessionUniqueID']
                     if not hasattr(self, '_last_session_id'):
                         self._last_session_id = current_session_id
-                        # Removed: logging.info(f"Initial session ID: {current_session_id}")
                     elif current_session_id != self._last_session_id:
-                        # Changed to DEBUG level
                         logging.debug(f"SESSION CHANGE: {self._last_session_id} -> {current_session_id}")
                         self._last_session_id = current_session_id
                         
@@ -1266,7 +1222,6 @@ AUTHOR: Szymon Flis
                                 else:
                                     delattr(self, attr)
                         
-                        # Changed to DEBUG level
                         logging.debug("Session change - cleared caches, will re-detect car")
                     
                     # PRIMARY: Fresh car detection (every 30 seconds or if car is Unknown)
@@ -1299,7 +1254,6 @@ AUTHOR: Szymon Flis
                                 # Update UI - Clean display without detection method
                                 self.car_label.config(text=f"{fresh_data['best_car_name']} (↑{upshift_rpm})")
                                 
-                                # Changed to DEBUG level
                                 detection_method = fresh_data.get('detection_method', 'unknown')
                                 logging.debug(f"Fresh car detection: '{fresh_car_name}' -> {upshift_rpm} RPM via {detection_method}")
                             
@@ -1324,7 +1278,7 @@ AUTHOR: Szymon Flis
                             display_gear = gear if gear and gear > 0 else 1
                             upshift_rpm = self.get_upshift_rpm_for_car(clean_car_name, display_gear)
                             
-                            # Clean display for fallback too
+                            # Clean display for fallback
                             self.car_label.config(text=f"{raw_car_name} (↑{upshift_rpm})")
                             self.has_beeped_for_current_upshift = False
                             # Changed to DEBUG level
@@ -1408,7 +1362,6 @@ AUTHOR: Szymon Flis
         self.root.after(self.settings["update_interval"], self.update_loop)
 
     def toggle_monitoring(self) -> None:
-        """Toggle monitoring state with modern UI updates"""
         self.is_monitoring = not self.is_monitoring
         status = "ACTIVE" if self.is_monitoring else "PAUSED"
         logging.info(f"Monitoring {status}")
@@ -1468,7 +1421,6 @@ AUTHOR: Szymon Flis
             logging.error(f"Error during shutdown: {e}")
 
 def main():
-    """Main application entry point with performance optimizations"""
     try:
         root = tk.Tk()
         
