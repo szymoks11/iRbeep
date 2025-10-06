@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-iRacing RPM Alert - Version 1.0
+iRacing RPM Alert - Version 1.1
 A real-time RPM monitoring and shift point alert system for iRacing
 
 Author: Szymon Flis
-Version: 1.0.3
+Version: 1.1.0
 License: MIT
 Repository: https://github.com/szymoks11/irbeep
 """
@@ -16,6 +16,10 @@ import winsound
 import time
 import json
 import re
+import subprocess
+import json
+import sys
+import os
 import logging
 from pathlib import Path
 from typing import Dict, Union, Optional
@@ -118,7 +122,7 @@ class IRacingRPMAlert:
     - Customizable alert sounds
     """
     
-    VERSION = "1.0.2"
+    VERSION = "1.1.0"
     
     # Modern color scheme
     COLORS = {
@@ -143,6 +147,9 @@ class IRacingRPMAlert:
         self.create_modern_gui()
         self.setup_iracing_connection()
         self.start_monitoring()
+        self._fresh_detector = None
+        self._last_fresh_check = 0
+        self._fresh_detection_interval = 30  # 30 seconds
         
         logging.info(f"iRacing RPM Alert v{self.VERSION} started")
     
@@ -548,7 +555,7 @@ class IRacingRPMAlert:
         
         # Help content
         help_text = """
-🏎️ iRacing RPM Alert Help
+iRacing RPM Alert Help
 
 FEATURES:
 • Real-time RPM monitoring
@@ -790,6 +797,47 @@ AUTHOR: Szymon Flis
         add_btn.grid(row=5, column=0, columnspan=2, pady=(10, 0))
         
         content.columnconfigure(0, weight=1)
+
+    def get_fresh_car_data(self):
+        """Get fresh car data using car_detector.py subprocess"""
+
+        
+        detector_path = "car_detector.py"
+        
+        # Check if car_detector.py exists
+        if not os.path.exists(detector_path):
+            logging.error("car_detector.py not found - fresh detection disabled")
+            return None
+        
+        try:
+            result = subprocess.run(
+                [sys.executable, detector_path, "--json"],
+                capture_output=True,
+                text=True,
+                timeout=10  # 10 second timeout
+            )
+            
+            if result.returncode == 0:
+                car_data = json.loads(result.stdout.strip())
+                if car_data.get("success"):
+                    logging.debug(f"Fresh detection: {car_data.get('best_car_name')} via {car_data.get('detection_method')}")
+                    return car_data
+                else:
+                    logging.debug(f"Fresh detection failed: {car_data.get('error')}")
+                    return None
+            else:
+                logging.warning(f"car_detector.py failed: {result.stderr}")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logging.warning("Fresh car detection timed out")
+            return None
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse car_detector.py output: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Fresh car detection error: {e}")
+            return None
 
     def toggle_simple_rpm_inputs(self):
         """Toggle between single and gear RPM inputs (simplified)"""
@@ -1129,7 +1177,7 @@ AUTHOR: Szymon Flis
             if all(keyword in car_name for keyword in keywords):
                 return rpm
         
-        return 8200  # Default fallback
+        return 0  # Default fallback
     
     def check_upshift_rpm_beep(self) -> None:
         """Check and handle upshift RPM alerts with improved accuracy"""
@@ -1185,79 +1233,111 @@ AUTHOR: Szymon Flis
         """Start the main monitoring loop"""
         self.update_loop()
 
+    
     def update_loop(self):
-        """Main update loop with session change detection"""
+        """Enhanced update loop with fresh car detection"""
         try:
             if self.ir.startup():
                 if self.ir.is_connected:
                     if self.status_indicator.text.cget('text') != "Connected":
                         self.status_indicator.set_status("Connected", self.COLORS['success'])
                     
-                    # Check for session changes (this reliably detects car switches)
+                    # Check for session changes (for clearing cache)
                     current_session_id = self.ir['SessionUniqueID']
                     if not hasattr(self, '_last_session_id'):
                         self._last_session_id = current_session_id
-                        logging.info(f"Initial session ID: {current_session_id}")
+                        # Removed: logging.info(f"Initial session ID: {current_session_id}")
                     elif current_session_id != self._last_session_id:
-                        # Session changed - force car re-detection
-                        logging.info(f"SESSION CHANGE: {self._last_session_id} -> {current_session_id}")
+                        # Changed to DEBUG level
+                        logging.debug(f"SESSION CHANGE: {self._last_session_id} -> {current_session_id}")
                         self._last_session_id = current_session_id
                         
-                        # Force complete reset of car detection
+                        # Reset car detection on session change
                         self.current_car = "Unknown"
                         self.has_beeped_for_current_upshift = False
+                        self._last_fresh_check = 0  # Force fresh check immediately
                         
-                        # Clear all cached data
-                        if hasattr(self, '_logged_safety_mappings'):
-                            self._logged_safety_mappings.clear()
-                        if hasattr(self, '_logged_cleanings'):
-                            self._logged_cleanings.clear()
-                        if hasattr(self, '_last_rpm_lookup'):
-                            self._last_rpm_lookup = None
-                        if hasattr(self, '_logged_matches'):
-                            self._logged_matches.clear()
-                        if hasattr(self, '_logged_porsche_matches'):
-                            self._logged_porsche_matches.clear()
-                        if hasattr(self, '_logged_fallbacks'):
-                            self._logged_fallbacks.clear()
+                        # Clear caches
+                        for attr in ['_logged_safety_mappings', '_logged_cleanings', '_last_rpm_lookup', 
+                                    '_logged_matches', '_logged_porsche_matches', '_logged_fallbacks']:
+                            if hasattr(self, attr):
+                                if hasattr(getattr(self, attr), 'clear'):
+                                    getattr(self, attr).clear()
+                                else:
+                                    delattr(self, attr)
                         
-                        # Show user feedback
-                        self.car_label.config(text="Detecting car after session change...")
-                        logging.info("Session change detected - re-detecting car")
+                        # Changed to DEBUG level
+                        logging.debug("Session change - cleared caches, will re-detect car")
                     
+                    # PRIMARY: Fresh car detection (every 30 seconds or if car is Unknown)
+                    current_time = time.time()
+                    should_fresh_check = (
+                        self.current_car == "Unknown" or 
+                        current_time - self._last_fresh_check > self._fresh_detection_interval
+                    )
+                    
+                    if should_fresh_check:
+                        logging.debug("Attempting fresh car detection...")
+                        fresh_data = self.get_fresh_car_data()
+                        
+                        if fresh_data and fresh_data.get('best_car_name'):
+                            fresh_car_name = self._clean_car_name(fresh_data['best_car_name'])
+                            
+                            if fresh_car_name != self.current_car and fresh_car_name != "No Car Data":
+                                # Only log significant car changes (not Unknown -> Car on startup)
+                                if self.current_car != "Unknown":
+                                    logging.info(f"Car changed: '{self.current_car}' -> '{fresh_car_name}'")
+                                
+                                self.current_car = fresh_car_name
+                                self.has_beeped_for_current_upshift = False
+                                
+                                # Get current gear for RPM calculation
+                                gear = self.ir['Gear'] if self.ir['Gear'] else 1
+                                display_gear = gear if gear and gear > 0 else 1
+                                upshift_rpm = self.get_upshift_rpm_for_car(fresh_car_name, display_gear)
+                                
+                                # Update UI - Clean display without detection method
+                                self.car_label.config(text=f"{fresh_data['best_car_name']} (↑{upshift_rpm})")
+                                
+                                # Changed to DEBUG level
+                                detection_method = fresh_data.get('detection_method', 'unknown')
+                                logging.debug(f"Fresh car detection: '{fresh_car_name}' -> {upshift_rpm} RPM via {detection_method}")
+                            
+                            elif fresh_car_name == self.current_car and fresh_car_name != "No Car Data":
+                                logging.debug(f"Fresh detection confirmed current car: {fresh_car_name}")
+                        
+                        else:
+                            logging.debug("Fresh detection failed or returned no data")
+                        
+                        self._last_fresh_check = current_time
+                    
+                    # FALLBACK: Regular detection (only if car is still Unknown after fresh attempt)
+                    if self.current_car == "Unknown":
+                        raw_car_name = self.get_current_car_from_sources()
+                        clean_car_name = self._clean_car_name(raw_car_name)
+                        
+                        if clean_car_name != "No Car Data":
+                            self.current_car = clean_car_name
+                            
+                            # Get current gear for RPM calculation
+                            gear = self.ir['Gear'] if self.ir['Gear'] else 1
+                            display_gear = gear if gear and gear > 0 else 1
+                            upshift_rpm = self.get_upshift_rpm_for_car(clean_car_name, display_gear)
+                            
+                            # Clean display for fallback too
+                            self.car_label.config(text=f"{raw_car_name} (↑{upshift_rpm})")
+                            self.has_beeped_for_current_upshift = False
+                            # Changed to DEBUG level
+                            logging.debug(f"Fallback detection: '{clean_car_name}' -> {upshift_rpm} RPM")
+                    
+                    # Continue with existing RPM and gear monitoring
                     self.ir.freeze_var_buffer_latest()
                     
                     try:
                         rpm = self.ir['RPM']
                         gear = self.ir['Gear']
-                        driver_info = self.ir['DriverInfo']
                         
-                        # Get car data every update
-                        raw_car_name = None
-                        player_car_idx = self.ir['PlayerCarIdx']
-                        
-                        if driver_info and 'Drivers' in driver_info and player_car_idx is not None:
-                            if player_car_idx < len(driver_info['Drivers']):
-                                player_data = driver_info['Drivers'][player_car_idx]
-                                raw_car_name = (player_data.get('CarScreenName') or 
-                                            player_data.get('CarScreenNameShort') or 
-                                            player_data.get('CarPath'))
-                        
-                        if not raw_car_name:
-                            raw_car_name = "No Car Data"
-                        
-                        clean_car_name = self._clean_car_name(raw_car_name)
-                        
-                        # Update car if different OR if we're in "Unknown" state
-                        if clean_car_name != self.current_car or self.current_car == "Unknown":
-                            self.current_car = clean_car_name
-                            display_gear = gear if gear and gear > 0 else 1
-                            upshift_rpm = self.get_upshift_rpm_for_car(clean_car_name, display_gear)
-                            self.car_label.config(text=f"{raw_car_name} (↑{upshift_rpm})")
-                            self.has_beeped_for_current_upshift = False
-                            logging.info(f"Car detected: '{clean_car_name}' [raw: '{raw_car_name}'] -> {upshift_rpm} RPM")
-                        
-                        # Rest of your existing RPM and gear code...
+                        # RPM monitoring
                         if rpm is not None:
                             new_rpm = int(rpm)
                             if abs(new_rpm - self.current_rpm) > 10:
@@ -1275,6 +1355,7 @@ AUTHOR: Szymon Flis
                             if self.is_monitoring:
                                 self.check_upshift_rpm_beep()
                         
+                        # Gear monitoring
                         if gear is not None and gear != self.current_gear:
                             self.current_gear = gear
                             
@@ -1285,13 +1366,17 @@ AUTHOR: Szymon Flis
                             else:
                                 self.gear_label.config(text=str(gear))
                             
+                            # Update RPM display when gear changes - Clean format
                             if self.current_car and self.current_car != "Unknown":
                                 display_gear = gear if gear > 0 else 1
                                 upshift_rpm = self.get_upshift_rpm_for_car(self.current_car, display_gear)
                                 current_display = self.car_label.cget('text')
+                                
                                 if " (↑" in current_display:
                                     display_name = current_display.split(" (↑")[0]
+                                    # Clean display - no detection method indicators
                                     self.car_label.config(text=f"{display_name} (↑{upshift_rpm})")
+                                
                                 self.has_beeped_for_current_upshift = False
                     
                     finally:

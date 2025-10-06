@@ -5,7 +5,7 @@
   "FIA F4": 7000,
   "Formula Vee": 6400,
   "Gen 3 Supercars": 7500,
-  "Global Mazda MX-5": 7400,
+  "Global Mazda MX-5": 7350,
   "Ligier JS P320": 6600,
   "McLaren 570S GT4": {
     "1": 6800,
@@ -44,21 +44,5 @@
   "McLaren MP4-12C GT3": 7000,
   "Mercedes-AMG W12 E Performance": 11500,
   "Porsche 911 GT3 R (992)": 9000,
-  "Porsche 911 GT3 R": 9000,
-  "fas": {
-    "1": 1,
-    "2": 1,
-    "3": 1,
-    "4": 1,
-    "5": 1,
-    "6": 1
-  },
-  "12": {
-    "1": 1,
-    "2": 1,
-    "3": 1,
-    "4": 1,
-    "5": 1,
-    "6": 1
-  }
+  "Porsche 911 GT3 R": 9000
 }
